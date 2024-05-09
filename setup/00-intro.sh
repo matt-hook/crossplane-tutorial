@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
 gum style \
@@ -42,7 +42,7 @@ rm -f .env
 # Control Plane Cluster #
 #########################
 
-kind create cluster --config kind.yaml
+kind create cluster --image mgti-images.mgti-dal-so-art.mrshmc.com/devopseng/kind/mmc-kind-node:v1 --config kind.yaml
 
 kubectl apply \
     --filename https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
@@ -54,9 +54,18 @@ kubectl apply \
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
+##################
+# FIX for Zscaler
+##################
+kubectl create namespace crossplane-system
+
+kubectl -n crossplane-system create cm ca-bundle-config \
+--from-file=ca-bundle=./x_custom_kind/zscaler.com/ZscalerRootCertificate-2048-SHA256.crt
+
 helm upgrade --install crossplane crossplane \
     --repo https://charts.crossplane.io/stable \
-    --namespace crossplane-system --create-namespace --wait
+    --namespace crossplane-system --create-namespace \
+    --set registryCaBundleConfig.name=ca-bundle-config,registryCaBundleConfig.key=ca-bundle --wait
 
 kubectl apply \
     --filename providers/provider-kubernetes-incluster.yaml
@@ -80,6 +89,8 @@ echo "## Which Hyperscaler do you want to use?" | gum format
 HYPERSCALER=$(gum choose "google" "aws" "azure")
 
 echo "export HYPERSCALER=$HYPERSCALER" >> .env
+
+echo "You chose $HYPERSCALER"
 
 if [[ "$HYPERSCALER" == "google" ]]; then
 
