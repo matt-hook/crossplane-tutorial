@@ -259,9 +259,21 @@ REPO_URL=$(echo $REPO_URL | sed 's/git@github.com:/https:\/\/github.com\//') # r
 
 yq --inplace ".spec.source.repoURL = \"$REPO_URL\"" argocd/apps.yaml
 
+##################
+# FIX for Zscaler
+##################
+# tls: failed to verify certificate: x509: certificate signed by unknown authority
+kubectl create namespace argocd
+kubectl -n argocd create secret generic custom-ca --from-file=ca.crt=./x_custom_kind/zscaler.com/ZscalerRootCertificate-2048-SHA256.crt
+
+#helm upgrade --install argocd argo-cd \
+#    --repo https://argoproj.github.io/argo-helm \
+#    --namespace argocd --create-namespace \
+#    --values argocd/helm-values.yaml --wait
+
 helm upgrade --install argocd argo-cd \
     --repo https://argoproj.github.io/argo-helm \
-    --namespace argocd --create-namespace \
+    --namespace argocd \
     --values argocd/helm-values.yaml --wait
 
 kubectl apply --filename argocd/apps.yaml
